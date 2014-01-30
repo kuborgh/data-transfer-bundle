@@ -20,9 +20,16 @@ Then install the dependency via
 composer require kuborgh/data-transfer-bundle *@dev
 ```
 
+2. Import configuration into main config. Add
+```
+imports:
+    - {resource: "@DataTransferBundle/Resources/config/parameters.yml"}
+```
+into your config.yml
+
 ## Configuration ##
 
-TBD
+See Resources/config/parameters.yml for details
 
 ## Usage ##
 

@@ -1,0 +1,6 @@
+parameters:
+    # Remote host to connect to via ssh
+    data_transfer_bundle.remote.host: remote.host.com
+
+    # Remote dir from where the console command can be executed. Can be absolute or relative. Skip trailing slash
+    data_transfer_bundle.remote.dir: /var/www/ezpublish/ezpublish
