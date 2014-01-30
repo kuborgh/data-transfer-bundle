@@ -1,0 +1,26 @@
+{
+    "name": "kuborgh/data-transfer-bundle",
+    "type": "library",
+    "description": "Vendor Library to easily transfer live data to a developer environment",
+    "keywords": ["library"],
+    "homepage": "https://github.com/kuborgh/data-transfer-bundle",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Hannes Giesenow",
+            "email": "hgiesenow@kuborgh.de"
+        }
+    ],
+    "require": {
+        "php": ">=5.3.2",
+		"symfony/console": "*"
+    },
+    "require-dev": {
+        "symfony/console": "*"
+    },
+    "autoload": {
+        "psr-0": { "Kuborgh\\DataTransfer": "" }
+    },
+    "minimum-stability": "dev",
+    "target-dir": "Kuborgh/DataTransfer"
+}
