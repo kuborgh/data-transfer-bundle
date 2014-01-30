@@ -19,8 +19,8 @@
         "symfony/console": "*"
     },
     "autoload": {
-        "psr-0": { "Kuborgh\\DataTransfer": "" }
+        "psr-0": { "Kuborgh\\DataTransferBundle": "" }
     },
     "minimum-stability": "dev",
-    "target-dir": "Kuborgh/DataTransfer"
+    "target-dir": "Kuborgh/DataTransferBundle"
 }
