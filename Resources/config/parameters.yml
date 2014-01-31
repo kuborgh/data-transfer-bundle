@@ -11,8 +11,18 @@ parameters:
     # Environment running on the remote host. Leave empty to use default
     data_transfer_bundle.remote.env: ~
 
-    # Remote dir from where the console command can be executed. Can be absolute or relative. Skip trailing slash
-    data_transfer_bundle.remote.dir: /var/www/ezpublish/ezpublish
+    # Remote dir root of the symfony/ezpublish installation. Can be absolute or relative to the home folder. Do not
+    # add a trailing slash.
+    data_transfer_bundle.remote.dir: /var/www/ezpublish
+
+    # How to call the console script on the remote system from within the remote.dir (specified above)
+    data_transfer_bundle.console_script: php ezpublish/console
+
+    # Specify a list of folders to be synced from remote host to local host. Folder must be relative to the symfony
+    # root and must not end with a trailing slash.
+    data_transfer_bundle.folders:
+        # Your legacy storage folder is a good example
+        - ezpublish_legacy/var/ezdemo_site/storage
 
     # Add a list of options to be used, when connecting via ssh.
     data_transfer_bundle.ssh.options:
@@ -20,3 +30,22 @@ parameters:
         - -o StrictHostKeyChecking=no
         # Use own ssh key
         #- -i ~/.ssh/id_rsa_server
+
+    # Command line options for rsyncing files
+    data_transfer_bundle.rsync.options:
+        # Enable verbosity
+        - -v
+        # Use checksum to only transfer changed files
+        - --checksum
+        # This avoids some permission problems
+        - --omit-dir-times
+        # Transfer files compressed
+        - --compress
+        # Transfer recursive
+        - --recursive
+        # copy symlinks as symlinks
+        - --links
+        # Keep exec flag
+        - --executability
+        # Delete removed files after the transfer
+        - --delete-after
