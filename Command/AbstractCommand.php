@@ -118,7 +118,7 @@ abstract class AbstractCommand extends ContainerAwareCommand
     /**
      * Update row after each progress step
      */
-    protected function progressRowUpdate()
+    private function progressRowUpdate()
     {
         // Start new line, when limit is reached
         if ($this->progressCount % self::ROW_LIMIT == 0) {

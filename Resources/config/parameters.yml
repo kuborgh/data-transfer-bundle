@@ -1,6 +1,22 @@
 parameters:
+    # Siteaccess to fetch database config from
+    data_transfer_bundle.siteaccess: ez_demobundle
+
     # Remote host to connect to via ssh
     data_transfer_bundle.remote.host: remote.host.com
 
+    # Remote username to connect to via ssh
+    data_transfer_bundle.remote.user: root
+
+    # Environment running on the remote host. Leave empty to use default
+    data_transfer_bundle.remote.env: ~
+
     # Remote dir from where the console command can be executed. Can be absolute or relative. Skip trailing slash
     data_transfer_bundle.remote.dir: /var/www/ezpublish/ezpublish
+
+    # Add a list of options to be used, when connecting via ssh.
+    data_transfer_bundle.ssh.options:
+        # Disable asking of host authenticity
+        - -o StrictHostKeyChecking=no
+        # Use own ssh key
+        #- -i ~/.ssh/id_rsa_server
