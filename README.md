@@ -17,7 +17,7 @@ This is a bundle to provide easy transfer of server data to the client.
 
 2. Install the dependency via composer
 ```
-composer require kuborgh/data-transfer-bundle "*"
+composer require kuborgh/data-transfer-bundle "*@dev"
 ```
 
 3. Import configuration into main config. Add
