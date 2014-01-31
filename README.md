@@ -10,15 +10,14 @@ This is a bundle to provide easy transfer of server data to the client.
 "repositories": [
         {
             "type": "vcs",
-            "url": "https://github.com/kuborgh/data-transfer-bundle
-"
+            "url": "https://github.com/kuborgh/data-transfer-bundle"
         }
     ],
 ```
 
 2. Install the dependency via composer
 ```
-composer require kuborgh/data-transfer-bundle *@dev
+composer require kuborgh/data-transfer-bundle "*"
 ```
 
 3. Import configuration into main config. Add
