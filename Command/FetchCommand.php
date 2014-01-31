@@ -110,7 +110,11 @@ class FetchCommand extends AbstractCommand
 
         // Execute command
         $process = new Process($exportCmd);
-        $process->run();
+        $process->run(
+            function () {
+                $this->progress();
+            }
+        );
         $this->progress();
         // Check for error
         if (!$process->isSuccessful()) {
@@ -123,6 +127,7 @@ class FetchCommand extends AbstractCommand
         if (!preg_match(self::VALID_DUMP_REGEX_1, $sqlDump) || !preg_match(self::VALID_DUMP_REGEX_2, $sqlDump)) {
             throw new \Exception(sprintf('Error on remote host: %s', $process->getOutput()));
         }
+        $this->progressOk();
 
         // Save dump to temporary file
         $tmpFile = $this->getContainer()->getParameter('kernel.cache_dir') . '/data-transfer.sql';
@@ -148,7 +153,11 @@ class FetchCommand extends AbstractCommand
         );
 
         $process = new Process($importCmd);
-        $process->run();
+        $process->run(
+            function () {
+                $this->progress();
+            }
+        );
         if (!$process->isSuccessful()) {
             throw new \Exception(sprintf('Error importing database : %s', $process->getOutput()));
         }
