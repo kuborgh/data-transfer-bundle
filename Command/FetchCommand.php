@@ -118,7 +118,11 @@ class FetchCommand extends AbstractCommand
         $this->progress();
         // Check for error
         if (!$process->isSuccessful()) {
-            throw new \Exception(sprintf('Cannot connect to remote host: %s', $process->getOutput()));
+            throw new \Exception(sprintf(
+                'Cannot connect to remote host: %s %s',
+                $process->getOutput(),
+                $process->getErrorOutput()
+            ));
         }
 
         // Check if we have a valid dump in our output
@@ -159,7 +163,11 @@ class FetchCommand extends AbstractCommand
             }
         );
         if (!$process->isSuccessful()) {
-            throw new \Exception(sprintf('Error importing database : %s', $process->getOutput()));
+            throw new \Exception(sprintf(
+                'Error importing database: %s %s',
+                $process->getOutput(),
+                $process->getErrorOutput()
+            ));
         }
         $this->progressOk();
 
@@ -209,7 +217,11 @@ class FetchCommand extends AbstractCommand
                 }
             );
             if (!$process->isSuccessful()) {
-                throw new \Exception(sprintf('Error fetching files: %s', $process->getOutput()));
+                throw new \Exception(sprintf(
+                    'Error fetching files: %s %s',
+                    $process->getOutput(),
+                    $process->getErrorOutput()
+                ));
             }
 
             $this->progressOk();

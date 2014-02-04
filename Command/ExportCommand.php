@@ -12,6 +12,7 @@ namespace Kuborgh\DataTransferBundle\Command;
 
 use Symfony\Bundle\FrameworkBundle\Command\ContainerAwareCommand;
 use Symfony\Component\Console\Input\InputInterface;
+use Symfony\Component\Console\Output\Output;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Process\Process;
 
@@ -48,7 +49,6 @@ class ExportCommand extends ContainerAwareCommand
         $dbUser = $dbParams['user'];
         $dbPass = $dbParams['password'];
         $dbHost = $dbParams['host'];
-
         // call mysqldump
         $cmd = sprintf(
             'mysqldump %s --user=%s --password=%s --host=%s 2>&1',
@@ -68,6 +68,6 @@ class ExportCommand extends ContainerAwareCommand
         $dump = $process->getOutput();
 
         // Output to console
-        $output->writeln($dump);
+        $output->write($dump, false, Output::OUTPUT_RAW);
     }
 } 
