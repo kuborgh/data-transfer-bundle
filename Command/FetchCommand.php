@@ -110,12 +110,19 @@ class FetchCommand extends AbstractCommand
 
         // Execute command
         $process = new Process($exportCmd);
+        $process->setTimeout(null);
+        $bytes = 0;
+        // Update status for each megabyte
         $process->run(
-            function () {
-                $this->progress();
+            function ($type, $buffer) use (&$bytes) {
+                $bytes += strlen($buffer);
+                if ($bytes / 1024 / 1024 >= 1) {
+                    $this->progress();
+                    $bytes = 0;
+                }
             }
         );
-        $this->progress();
+
         // Check for error
         if (!$process->isSuccessful()) {
             throw new \Exception(sprintf(
@@ -124,6 +131,7 @@ class FetchCommand extends AbstractCommand
                 $process->getErrorOutput()
             ));
         }
+        $this->progressOk();
 
         // Check if we have a valid dump in our output
         // first line must start with '-- MySQL dump' and end with '-- Dump completed'
@@ -136,7 +144,10 @@ class FetchCommand extends AbstractCommand
         // Save dump to temporary file
         $tmpFile = $this->getContainer()->getParameter('kernel.cache_dir') . '/data-transfer.sql';
         file_put_contents($tmpFile, $sqlDump);
-        $this->progress();
+        $this->progressDone();
+
+        // Import database
+        $this->output->writeln('Importing database');
 
         // Fetch db connection data
         $siteaccess = $this->getContainer()->getParameter('data_transfer_bundle.siteaccess');
@@ -155,13 +166,14 @@ class FetchCommand extends AbstractCommand
             escapeshellarg($dbHost),
             escapeshellarg($tmpFile)
         );
+        $this->progress();
 
         $process = new Process($importCmd);
-        $process->run(
-            function () {
-                $this->progress();
-            }
-        );
+        $process->setTimeout(null);
+        // Update status for each megabyte
+        $process->run();
+        $this->progress();
+
         if (!$process->isSuccessful()) {
             throw new \Exception(sprintf(
                 'Error importing database: %s %s',
