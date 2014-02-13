@@ -30,7 +30,7 @@ class FetchCommand extends AbstractCommand
      * Regex to check if the remote dump is ok
      * must end with '-- Dump completed'
      */
-    const VALID_DUMP_REGEX_2 = '/\-\- Dump completed on \d*\-\d*\-\d* \d+\:\d+\:\d+[\r\n\s\t]*$/';
+    const VALID_DUMP_REGEX_2 = '/\-\- Dump completed on\s+\d*\-\d*\-\d*\s+\d+\:\d+\:\d+[\r\n\s\t]*$/';
 
     /**
      * Configure command
