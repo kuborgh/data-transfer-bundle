@@ -31,6 +31,12 @@ parameters:
         # Use own ssh key
         #- -i ~/.ssh/id_rsa_server
 
+    # These options are required, if a ssh connection must be tunneled trough another ssh connection
+    data_transfer_bundle.ssh.proxy.host: ~
+    data_transfer_bundle.ssh.proxy.user: ~
+    # See options above
+    data_transfer_bundle.ssh.proxy.options: [-o StrictHostKeyChecking=no]
+
     # Command line options for rsyncing files
     data_transfer_bundle.rsync.options:
         # Enable verbosity

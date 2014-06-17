@@ -97,6 +97,13 @@ class FetchCommand extends AbstractCommand
         $remoteEnv = $this->getParam('remote.env');
         $consoleCmd = $this->getParam('console_script');
         $options = $this->getParam('ssh.options');
+
+        // Check for ssh proxy
+        $sshProxyString = $this->getSshProxyOption();
+        if ($sshProxyString) {
+            $options[] = $sshProxyString;
+        }
+
         $exportCmd = sprintf(
             'ssh %s %s@%s "cd %s ; %s %s data-transfer:export 2>&1"',
             implode(' ', $options),
@@ -202,6 +209,12 @@ class FetchCommand extends AbstractCommand
         $rsyncOptions = $this->getParam('rsync.options');
         $sshOptions = $this->getParam('ssh.options');
 
+        // Check for ssh proxy
+        $sshProxyString = $this->getSshProxyOption();
+        if ($sshProxyString) {
+            $sshOptions[] = $sshProxyString;
+        }
+
         // Fetch params
         $remoteHost = $this->getParam('remote.host');
         $remoteUser = $this->getParam('remote.user');
@@ -211,7 +224,7 @@ class FetchCommand extends AbstractCommand
         foreach ($folders as $folder) {
             // Prepare command
             $cmd = sprintf(
-                'rsync %s -e "ssh %s" %s@%s:%s/%s %s/ 2>&1',
+                'rsync %s -e \'ssh %s\' %s@%s:%s/%s %s/ 2>&1',
                 implode(' ', $rsyncOptions),
                 implode(' ', $sshOptions),
                 $remoteUser,
@@ -250,5 +263,33 @@ class FetchCommand extends AbstractCommand
     protected function getParam($param)
     {
         return $this->getContainer()->getParameter('data_transfer_bundle.' . $param);
+    }
+
+    /**
+     * Find ssh proxy options and return as ssh option string
+     *
+     * @return String
+     */
+    protected function getSshProxyOption()
+    {
+        // Check for ssh proxy
+        $sshProxyHost = $this->getParam('ssh.proxy.host');
+        $sshProxyUser = $this->getParam('ssh.proxy.user');
+        $sshProxyOptions = $this->getParam('ssh.proxy.options');
+
+        // No host or user -> no proxy
+        if (!$sshProxyHost || !$sshProxyUser) {
+            return '';
+        }
+
+        // Build option string
+        $opt = sprintf(
+            '-o ProxyCommand="ssh -W %%h:%%p %s %s@%s"',
+            implode(' ', $sshProxyOptions),
+            $sshProxyUser,
+            $sshProxyHost
+        );
+
+        return $opt;
     }
 } 
