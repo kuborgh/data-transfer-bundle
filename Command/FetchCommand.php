@@ -221,7 +221,13 @@ class FetchCommand extends AbstractCommand
         $remoteDir = $this->getParam('remote.dir');
 
         // Loop over the folders, to be transfered
-        foreach ($folders as $folder) {
+        foreach ($folders as $src => $dst) {
+            // If src = numeric, then indiced array was taken. detect folder automatically
+            if (is_numeric($src)) {
+                $src = $dst;
+                $dst = dirname($src);
+            }
+
             // Prepare command
             $cmd = sprintf(
                 'rsync %s -e \'ssh %s\' %s@%s:%s/%s %s/ 2>&1',
@@ -230,8 +236,8 @@ class FetchCommand extends AbstractCommand
                 $remoteUser,
                 $remoteHost,
                 $remoteDir,
-                $folder,
-                dirname($folder)
+                $src,
+                $dst
             );
 
             // Run (with callback to update those fancy dots

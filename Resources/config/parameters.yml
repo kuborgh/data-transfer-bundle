@@ -20,9 +20,12 @@ parameters:
 
     # Specify a list of folders to be synced from remote host to local host. Folder must be relative to the symfony
     # root and must not end with a trailing slash.
+    # You can use either a list of folders or key value pairs, if folders must be renamed
     data_transfer_bundle.folders:
         # Your legacy storage folder is a good example
         - ezpublish_legacy/var/ezdemo_site/storage
+        # Alternate notation, does the same
+        # ezpublish_legacy/var/ezdemo_site/storage: ezpublish_legacy/var/ezdemo_site/
 
     # Add a list of options to be used, when connecting via ssh.
     data_transfer_bundle.ssh.options:
