@@ -236,6 +236,7 @@ class FetchCommand extends AbstractCommand
 
             // Run (with callback to update those fancy dots
             $process = new Process($cmd);
+            $process->setTimeout(null);
             $process->run(
                 function () {
                     $this->progress();
