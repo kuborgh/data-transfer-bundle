@@ -158,11 +158,16 @@ class FetchCommand extends AbstractCommand
 
         // Fetch db connection data
         $siteaccess = $this->getContainer()->getParameter('data_transfer_bundle.siteaccess');
-        $dbParams = $this->getContainer()->getParameter(sprintf('ezsettings.%s.database.params', $siteaccess));
-        $dbName = $dbParams['database'];
-        $dbUser = $dbParams['user'];
-        $dbPass = $dbParams['password'];
-        $dbHost = $dbParams['host'];
+        $repository = $this->getContainer()->getParameter(sprintf('ezsettings.%s.repository', $siteaccess));
+        $repositories = $this->getContainer()->getParameter('ezpublish.repositories');
+        $connection = $repositories[$repository]['connection'];
+        /** @var $dbalConnection Connection */
+        $dbalConnection = $this->getContainer()->get(sprintf('doctrine.dbal.%s_connection', $connection));
+
+        $dbName = $dbalConnection->getDatabase();
+        $dbUser = $dbalConnection->getUsername();
+        $dbPass = $dbalConnection->getPassword();
+        $dbHost = $dbalConnection->getHost();
 
         // Import Dump
         $importCmd = sprintf(
