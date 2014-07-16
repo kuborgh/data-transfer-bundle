@@ -10,6 +10,7 @@
 
 namespace Kuborgh\DataTransferBundle\Command;
 
+use Kuborgh\DataTransferBundle\Traits\DatabaseConnectionTrait;
 use Symfony\Bundle\FrameworkBundle\Command\ContainerAwareCommand;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\Output;
@@ -21,6 +22,8 @@ use Symfony\Component\Process\Process;
  */
 class ExportCommand extends ContainerAwareCommand
 {
+    use DatabaseConnectionTrait;
+
     /**
      * Configure command
      */
@@ -43,19 +46,15 @@ class ExportCommand extends ContainerAwareCommand
     protected function execute(InputInterface $input, OutputInterface $output)
     {
         // Fetch db connection data
-        $siteaccess = $this->getContainer()->getParameter('data_transfer_bundle.siteaccess');
-        $dbParams = $this->getContainer()->getParameter(sprintf('ezsettings.%s.database.params', $siteaccess));
-        $dbName = $dbParams['database'];
-        $dbUser = $dbParams['user'];
-        $dbPass = $dbParams['password'];
-        $dbHost = $dbParams['host'];
+        $dbParams = $this->getDatabaseParameter();
+
         // call mysqldump
         $cmd = sprintf(
             'mysqldump %s --user=%s --password=%s --host=%s 2>&1',
-            escapeshellarg($dbName),
-            escapeshellarg($dbUser),
-            escapeshellarg($dbPass),
-            escapeshellarg($dbHost)
+            escapeshellarg($dbParams['dbName']),
+            escapeshellarg($dbParams['dbUser']),
+            escapeshellarg($dbParams['dbPass']),
+            escapeshellarg($dbParams['dbHost'])
         );
 
         // Execute command

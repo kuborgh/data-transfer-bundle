@@ -10,6 +10,7 @@
 
 namespace Kuborgh\DataTransferBundle\Command;
 
+use Kuborgh\DataTransferBundle\Traits\DatabaseConnectionTrait;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
@@ -31,6 +32,11 @@ class FetchCommand extends AbstractCommand
      * must end with '-- Dump completed'
      */
     const VALID_DUMP_REGEX_2 = '/\-\- Dump completed on\s+\d*\-\d*\-\d*\s+\d+\:\d+\:\d+[\r\n\s\t]*$/';
+
+    /**
+     * Trait for determine the local database connection based on a given siteaccess
+     */
+    use DatabaseConnectionTrait;
 
     /**
      * Configure command
@@ -157,40 +163,15 @@ class FetchCommand extends AbstractCommand
         $this->output->writeln('Importing database');
 
         // Fetch db connection data
-        $siteaccess = $this->getContainer()->getParameter('data_transfer_bundle.siteaccess');
-
-        $legacyParameter = sprintf('ezsettings.%s.database.params', $siteaccess);
-        $repositoryParameter = sprintf('ezsettings.%s.repository', $siteaccess);
-		
-        if($this->getContainer()->hasParameter($legacyParameter)) {
-            $dbParams = $this->getContainer()->getParameter($legacyParameter);
-            $dbName = $dbParams['database'];
-            $dbUser = $dbParams['user'];
-            $dbPass = $dbParams['password'];
-            $dbHost = $dbParams['host'];
-        } elseif ($this->getContainer()->hasParameter($repositoryParameter)) {
-            $repository = $this->getContainer()->getParameter($repositoryParameter);
-            $repositories = $this->getContainer()->getParameter('ezpublish.repositories');
-            $connection = $repositories[$repository]['connection'];
-            /** @var $dbalConnection Connection */
-            $dbalConnection = $this->getContainer()->get(sprintf('doctrine.dbal.%s_connection', $connection));
-
-            $dbName = $dbalConnection->getDatabase();
-            $dbUser = $dbalConnection->getUsername();
-            $dbPass = $dbalConnection->getPassword();
-            $dbHost = $dbalConnection->getHost();
-        } else {
-            $message = "Unable to find database settings from siteaccess. You need to define either %s or %s";
-            throw new \Exception(sprintf($message, $legacyParameter, $repositoryParameter));
-        }
+        $dbParams = $this->getDatabaseParameter();
 
         // Import Dump
         $importCmd = sprintf(
             'mysql %s --user=%s --password=%s --host=%s < %s 2>&1',
-            escapeshellarg($dbName),
-            escapeshellarg($dbUser),
-            escapeshellarg($dbPass),
-            escapeshellarg($dbHost),
+            escapeshellarg($dbParams['dbName']),
+            escapeshellarg($dbParams['dbUser']),
+            escapeshellarg($dbParams['dbPass']),
+            escapeshellarg($dbParams['dbHost']),
             escapeshellarg($tmpFile)
         );
         $this->progress();
