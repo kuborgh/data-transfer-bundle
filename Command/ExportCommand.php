@@ -60,14 +60,20 @@ class ExportCommand extends ContainerAwareCommand
 
         // Execute command
         $process = new Process($cmd);
-        $process->run();
+        $process->setTimeout(null);
+
+        // Output data directly to not get a timeout
+        $process->run(
+            function ($type, $buffer) use ($output) {
+                // Output directly to console
+                if ($type == Process::OUT) {
+                    $output->write($buffer, false, Output::OUTPUT_RAW);
+                }
+            }
+        );
+
         if (!$process->isSuccessful()) {
             throw new \Exception(sprintf("Error dumping database:\n%s", $process->getOutput()));
         }
-
-        $dump = $process->getOutput();
-
-        // Output to console
-        $output->write($dump, false, Output::OUTPUT_RAW);
     }
 } 
