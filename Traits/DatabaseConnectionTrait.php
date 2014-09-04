@@ -13,9 +13,52 @@ namespace Kuborgh\DataTransferBundle\Traits;
 use Doctrine\DBAL\Connection;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
+/**
+ * Database connection trait.
+ * Provides helper functions to get the database connection on the current system.
+ */
 trait DatabaseConnectionTrait
 {
+    /**
+     * Get database connection.
+     *
+     * @throws \Exception
+     *
+     * @return string[]
+     */
     protected function getDatabaseParameter()
+    {
+        if($this->getContainer()->getParameter('data_transfer_bundle.siteaccess')) {
+            return $this->getEzPublishDatabase();
+        } else {
+            return $this->getSymfonyDatabase();
+        }
+    }
+
+    /**
+     * Use default parameters ( should be provided in parameters.yml )
+     *
+     * @return string[]
+     */
+    private function getSymfonyDatabase()
+    {
+        return array(
+            'dbName' => $this->getContainer()->getParameter('database_name'),
+            'dbUser' => $this->getContainer()->getParameter('database_user'),
+            'dbPass' => $this->getContainer()->getParameter('database_password'),
+            'dbHost' => $this->getContainer()->getParameter('database_host')
+        );
+    }
+
+    /**
+     * Get database from eZ publish.
+     * Works with new doctrine connection and legacy configuration.
+     *
+     * @throws \Exception
+     *
+     * @return string[]
+     */
+    private function getEzPublishDatabase()
     {
         // Fetch db connection data
         $siteaccess = $this->getContainer()->getParameter('data_transfer_bundle.siteaccess');
