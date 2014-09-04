@@ -203,8 +203,6 @@ class FetchCommand extends AbstractCommand
      */
     protected function fetchFiles()
     {
-        $this->output->writeln('Fetching files');
-
         // Fetch folders to rsync
         $folders = $this->getParam('folders');
         $rsyncOptions = $this->getParam('rsync.options');
@@ -231,7 +229,7 @@ class FetchCommand extends AbstractCommand
 
             // Prepare command
             $cmd = sprintf(
-                'rsync %s -e \'ssh %s\' %s@%s:%s/%s %s/ 2>&1',
+                'rsync -P %s -e \'ssh %s\' %s@%s:%s/%s %s/ 2>&1',
                 implode(' ', $rsyncOptions),
                 implode(' ', $sshOptions),
                 $remoteUser,
@@ -244,11 +242,45 @@ class FetchCommand extends AbstractCommand
             // Run (with callback to update those fancy dots
             $process = new Process($cmd);
             $process->setTimeout(null);
+
+            $lastCnt = 0;
+            $counting = true;
+            $this->output->writeln('Counting files');
             $process->run(
-                function () {
-                    $this->progress();
+                function ($type, $buffer) use (&$lastCnt, &$counting) {
+                    if (preg_match('/(\d+)\sfiles.../', $buffer, $matches)) {
+                        // Still counting
+                        $diff = ($matches[1] - $lastCnt) / 100;
+                        for ($i = 0; $i < $diff; $i++) {
+                            $this->progress();
+                        }
+                        $lastCnt = $matches[1];
+
+                    } elseif (preg_match('/xfer#(\d+), to\-check=(\d+)\/(\d+)/', $buffer, $matches)) {
+                        // Finished counting, now downloading
+                        if ($counting) {
+                            $counting = false;
+                            $this->progressDone();
+                            $this->output->writeln(sprintf('Found %d files/folders', $lastCnt));
+                            $this->output->writeln('');
+                            $this->output->writeln('Syncing files');
+                            $lastCnt = 0;
+                        }
+
+                        $diff = floor(($matches[1] - $lastCnt) / 100);
+                        for ($i = 0; $i < $diff; $i++) {
+                            $this->progress();
+                        }
+                        if ($diff) {
+                            $lastCnt += $diff*100;
+                        }
+                    }
                 }
             );
+            if ($counting) {
+                $this->output->writeln('Files already up-to-date');
+            }
+
             if (!$process->isSuccessful()) {
                 throw new \Exception(sprintf(
                     'Error fetching files: %s %s',
