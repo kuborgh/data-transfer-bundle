@@ -68,6 +68,9 @@ class ExportCommand extends ContainerAwareCommand
             $filename = sprintf('%s/db-dump-%s.sql', $folder, time());
             $parameters[] = escapeshellarg('-q');
             $parameters[] = escapeshellarg(sprintf('--result-file=%s', $filename));
+
+            // cleanup old dumps to make some space for new ones
+            $this->cleanupOldDumps();
         }
 
         // call mysqldump
@@ -98,6 +101,26 @@ class ExportCommand extends ContainerAwareCommand
             $data['basename'] = basename($filename);
             $data['size'] = filesize($filename);
             $output->write(json_encode($data), false, Output::OUTPUT_RAW);
+        }
+    }
+
+    /**
+     * Cleanup db dump from cache folder, that are older than 24h
+     */
+    protected function cleanupOldDumps()
+    {
+        // Define "old" as 24h in the past
+        $old = time() - 24 * 60 * 60;
+
+        $folder = $this->getContainer()->getParameter('kernel.cache_dir');
+        foreach (glob($folder . '/db-dump-*.sql') as $dump) {
+            if (!preg_match('/db\-dump\-(\d*)\.sql$/', $dump, $matches)) {
+                continue;
+            }
+            if ($matches[1] < $old) {
+                $process = new Process(sprintf('rm %s', $dump));
+                $process->run();
+            }
         }
     }
 } 
