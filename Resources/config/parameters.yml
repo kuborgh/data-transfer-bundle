@@ -58,3 +58,6 @@ parameters:
         - --executability
         # Delete removed files after the transfer
         - --delete-after
+
+    # Fetch Database via sql file, not via stdout. This scales better for large databases
+    data_transfer_bundle.db_via_file: true

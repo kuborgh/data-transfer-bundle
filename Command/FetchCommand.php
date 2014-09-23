@@ -103,6 +103,7 @@ class FetchCommand extends AbstractCommand
         $remoteEnv = $this->getParam('remote.env');
         $consoleCmd = $this->getParam('console_script');
         $options = $this->getParam('ssh.options');
+        $useFile = $this->getParam('db_via_file');
 
         // Check for ssh proxy
         $sshProxyString = $this->getSshProxyOption();
@@ -111,53 +112,102 @@ class FetchCommand extends AbstractCommand
         }
 
         $exportCmd = sprintf(
-            'ssh %s %s@%s "cd %s ; %s %s data-transfer:export 2>&1"',
+            'ssh %s %s@%s "cd %s ; %s %s data-transfer:export %s 2>&1"',
             implode(' ', $options),
             $remoteUser,
             $remoteHost,
             $remoteDir,
             $consoleCmd,
-            $remoteEnv ? '--env=' . $remoteEnv : ''
+            $remoteEnv ? '--env=' . $remoteEnv : '',
+            $useFile ? '--file' : ''
         );
         $this->progress();
 
-        // Execute command
-        $process = new Process($exportCmd);
-        $process->setTimeout(null);
-        $bytes = 0;
-        // Update status for each megabyte
-        $process->run(
-            function ($type, $buffer) use (&$bytes) {
-                $bytes += strlen($buffer);
-                if ($bytes / 1024 / 1024 >= 1) {
-                    $this->progress();
-                    $bytes = 0;
+        $cacheFolder = $this->getContainer()->getParameter('kernel.cache_dir');
+
+        // Create file handle to save the stream to
+        if (!$useFile) {
+            $tmpFile = $cacheFolder . '/data-transfer.sql';
+            $tmpFileHandle = fopen($tmpFile, 'w');
+
+            // Execute command
+            $process = new Process($exportCmd);
+            $process->setTimeout(null);
+            $bytes = 0;
+            // Update status for each megabyte
+            $process->run(
+                function ($type, $buffer) use (&$bytes, $tmpFileHandle, $process) {
+                    if ($type == Process::OUT) {
+                        // Update progress
+                        $bytes += strlen($buffer);
+                        if ($bytes / 1024 / 1024 >= 1) {
+                            $this->progress();
+                            $bytes = 0;
+                        }
+                        $process->getOutput();
+
+                        // write to file
+                        fwrite($tmpFileHandle, $buffer);
+                    }
                 }
+            );
+
+
+            // Check for error
+            if (!$process->isSuccessful()) {
+                throw new \Exception(sprintf(
+                    'Cannot connect to remote host: %s %s',
+                    $process->getOutput(),
+                    $process->getErrorOutput()
+                ));
             }
-        );
+            $this->progressOk();
 
-        // Check for error
-        if (!$process->isSuccessful()) {
-            throw new \Exception(sprintf(
-                'Cannot connect to remote host: %s %s',
-                $process->getOutput(),
-                $process->getErrorOutput()
-            ));
+            // Check if we have a valid dump in our output
+            // first line must start with '-- MySQL dump' and end with '-- Dump completed'
+            rewind($tmpFileHandle);
+            $start = fgets($tmpFileHandle, 4096);
+            fseek($tmpFileHandle, 4096, SEEK_END);
+            $end = fgets($tmpFileHandle, 4096);
+            if (!preg_match(self::VALID_DUMP_REGEX_1, $start) || !preg_match(self::VALID_DUMP_REGEX_2, $end)) {
+                throw new \Exception(sprintf('Error on remote host: %s', $process->getOutput()));
+            }
+            $this->progressOk();
+
+            // Close file handle
+            fclose($tmpFileHandle);
+            $this->progressDone();
+        } else {
+            // Execute command
+            $process = new Process($exportCmd);
+            $process->setTimeout(null);
+            $process->run();
+
+            // Check for error
+            if (!$process->isSuccessful()) {
+                throw new \Exception(sprintf(
+                    'Cannot connect to remote host: %s %s',
+                    $process->getOutput(),
+                    $process->getErrorOutput()
+                ));
+            }
+            $this->progressOk();
+
+            // Extract information
+            $json = $process->getOutput();
+            $data = json_decode($json, true);
+
+            // Fetch file via rsync
+            $tmpFile = $cacheFolder . '/' . $data['basename'];
+            $this->rSync($data['filename'], $tmpFile);
+            $this->progressOk();
+
+            // Remove remote dump
+            $this->execRemoteCommand(sprintf('rm %s', $data['filename']));
+            $this->progressOk();
+
+            $this->progressDone();
         }
-        $this->progressOk();
-
-        // Check if we have a valid dump in our output
-        // first line must start with '-- MySQL dump' and end with '-- Dump completed'
-        $sqlDump = $process->getOutput();
-        if (!preg_match(self::VALID_DUMP_REGEX_1, $sqlDump) || !preg_match(self::VALID_DUMP_REGEX_2, $sqlDump)) {
-            throw new \Exception(sprintf('Error on remote host: %s', $process->getOutput()));
-        }
-        $this->progressOk();
-
-        // Save dump to temporary file
-        $tmpFile = $this->getContainer()->getParameter('kernel.cache_dir') . '/data-transfer.sql';
-        file_put_contents($tmpFile, $sqlDump);
-        $this->progressDone();
 
         // Import database
         $this->output->writeln('Importing database');
@@ -195,6 +245,7 @@ class FetchCommand extends AbstractCommand
         if (file_exists($tmpFile)) {
             unlink($tmpFile);
         }
+
         $this->progress();
     }
 
@@ -248,31 +299,33 @@ class FetchCommand extends AbstractCommand
             $this->output->writeln('Counting files');
             $process->run(
                 function ($type, $buffer) use (&$lastCnt, &$counting) {
-                    if (preg_match('/(\d+)\sfiles.../', $buffer, $matches)) {
-                        // Still counting
-                        $diff = ($matches[1] - $lastCnt) / 100;
-                        for ($i = 0; $i < $diff; $i++) {
-                            $this->progress();
-                        }
-                        $lastCnt = $matches[1];
+                    if ($type == Process::OUT) {
+                        if (preg_match('/(\d+)\sfiles.../', $buffer, $matches)) {
+                            // Still counting
+                            $diff = ($matches[1] - $lastCnt) / 100;
+                            for ($i = 0; $i < $diff; $i++) {
+                                $this->progress();
+                            }
+                            $lastCnt = $matches[1];
 
-                    } elseif (preg_match('/xfer#(\d+), to\-check=(\d+)\/(\d+)/', $buffer, $matches)) {
-                        // Finished counting, now downloading
-                        if ($counting) {
-                            $counting = false;
-                            $this->progressDone();
-                            $this->output->writeln(sprintf('Found %d files/folders', $lastCnt));
-                            $this->output->writeln('');
-                            $this->output->writeln('Syncing files');
-                            $lastCnt = 0;
-                        }
+                        } elseif (preg_match('/xfer#(\d+), to\-check=(\d+)\/(\d+)/', $buffer, $matches)) {
+                            // Finished counting, now downloading
+                            if ($counting) {
+                                $counting = false;
+                                $this->progressDone();
+                                $this->output->writeln(sprintf('Found %d files/folders', $lastCnt));
+                                $this->output->writeln('');
+                                $this->output->writeln('Syncing files');
+                                $lastCnt = 0;
+                            }
 
-                        $diff = floor(($matches[1] - $lastCnt) / 100);
-                        for ($i = 0; $i < $diff; $i++) {
-                            $this->progress();
-                        }
-                        if ($diff) {
-                            $lastCnt += $diff*100;
+                            $diff = floor(($matches[1] - $lastCnt) / 100);
+                            for ($i = 0; $i < $diff; $i++) {
+                                $this->progress();
+                            }
+                            if ($diff) {
+                                $lastCnt += $diff * 100;
+                            }
                         }
                     }
                 }
@@ -332,4 +385,69 @@ class FetchCommand extends AbstractCommand
 
         return $opt;
     }
-} 
+
+    /**
+     * Call rsync with all needed params
+     *
+     * @param String   $src      Source
+     * @param String   $dst      Destination
+     * @param callable $callback Optional callback
+     */
+    protected function rSync($src, $dst, $callback = null)
+    {
+        $rsyncOptions = $this->getParam('rsync.options');
+        $sshOptions = $this->getParam('ssh.options');
+        $remoteHost = $this->getParam('remote.host');
+        $remoteUser = $this->getParam('remote.user');
+
+        // Check for ssh proxy
+        $sshProxyString = $this->getSshProxyOption();
+        if ($sshProxyString) {
+            $sshOptions[] = $sshProxyString;
+        }
+
+        $cmd = sprintf(
+            'rsync -P %s -e \'ssh %s\' %s@%s:%s %s 2>&1',
+            implode(' ', $rsyncOptions),
+            implode(' ', $sshOptions),
+            $remoteUser,
+            $remoteHost,
+            $src,
+            $dst
+        );
+        $process = new Process($cmd);
+        $process->setTimeout(null);
+        $process->run($callback);
+    }
+
+    /**
+     * Exec command on remote side via ssh
+     * @param String $cmd Command
+     */
+    protected function execRemoteCommand($cmd)
+    {
+        // Prepare remote command
+        $remoteHost = $this->getParam('remote.host');
+        $remoteUser = $this->getParam('remote.user');
+        $remoteDir = $this->getParam('remote.dir');
+        $options = $this->getParam('ssh.options');
+
+        // Check for ssh proxy
+        $sshProxyString = $this->getSshProxyOption();
+        if ($sshProxyString) {
+            $options[] = $sshProxyString;
+        }
+
+        $remoteCmd = sprintf(
+            'ssh %s %s@%s "cd %s ; %s 2>&1"',
+            implode(' ', $options),
+            $remoteUser,
+            $remoteHost,
+            $remoteDir,
+            $cmd
+        );
+        $process = new Process($remoteCmd);
+        $process->setTimeout(null);
+        $process->run();
+    }
+}

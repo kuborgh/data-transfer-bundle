@@ -13,6 +13,7 @@ namespace Kuborgh\DataTransferBundle\Command;
 use Kuborgh\DataTransferBundle\Traits\DatabaseConnectionTrait;
 use Symfony\Bundle\FrameworkBundle\Command\ContainerAwareCommand;
 use Symfony\Component\Console\Input\InputInterface;
+use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\Output;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Process\Process;
@@ -24,6 +25,8 @@ class ExportCommand extends ContainerAwareCommand
 {
     use DatabaseConnectionTrait;
 
+    const OPT_FILE = 'file';
+
     /**
      * Configure command
      */
@@ -32,6 +35,7 @@ class ExportCommand extends ContainerAwareCommand
         $this
             ->setName('data-transfer:export')
             ->setDescription('Dump SQL database to stdout');
+        $this->addOption(self::OPT_FILE, null, InputOption::VALUE_NONE, 'Dump database to file, not to stdout');
     }
 
     /**
@@ -48,14 +52,26 @@ class ExportCommand extends ContainerAwareCommand
         // Fetch db connection data
         $dbParams = $this->getDatabaseParameter();
 
+        // Prepare command line parameters
+        $parameters = Array();
+        $parameters[] = escapeshellarg($dbParams['dbName']);
+        $parameters[] = sprintf('--user=%s', escapeshellarg($dbParams['dbUser']));
+        $parameters[] = sprintf('--password=%s', escapeshellarg($dbParams['dbPass']));
+        $parameters[] = sprintf('--host=%s', escapeshellarg($dbParams['dbHost']));
+
+
+        // Write to file instead of stdout
+        $toFile = $input->getOption(self::OPT_FILE);
+        $filename = null;
+        if ($toFile) {
+            $folder = $this->getContainer()->getParameter('kernel.cache_dir');
+            $filename = sprintf('%s/db-dump-%s.sql', $folder, time());
+            $parameters[] = escapeshellarg('-q');
+            $parameters[] = escapeshellarg(sprintf('--result-file=%s', $filename));
+        }
+
         // call mysqldump
-        $cmd = sprintf(
-            'mysqldump %s --user=%s --password=%s --host=%s 2>&1',
-            escapeshellarg($dbParams['dbName']),
-            escapeshellarg($dbParams['dbUser']),
-            escapeshellarg($dbParams['dbPass']),
-            escapeshellarg($dbParams['dbHost'])
-        );
+        $cmd = sprintf('mysqldump %s 2>&1', implode(' ', $parameters));
 
         // Execute command
         $process = new Process($cmd);
@@ -63,9 +79,9 @@ class ExportCommand extends ContainerAwareCommand
 
         // Output data directly to not get a timeout
         $process->run(
-            function ($type, $buffer) use ($output) {
+            function ($type, $buffer) use ($output, $toFile) {
                 // Output directly to console
-                if ($type == Process::OUT) {
+                if (!$toFile && $type == Process::OUT) {
                     $output->write($buffer, false, Output::OUTPUT_RAW);
                 }
             }
@@ -73,6 +89,15 @@ class ExportCommand extends ContainerAwareCommand
 
         if (!$process->isSuccessful()) {
             throw new \Exception(sprintf("Error dumping database:\n%s", $process->getOutput()));
+        }
+
+        // Print hints to the file
+        if ($toFile) {
+            $data = Array();
+            $data['filename'] = $filename;
+            $data['basename'] = basename($filename);
+            $data['size'] = filesize($filename);
+            $output->write(json_encode($data), false, Output::OUTPUT_RAW);
         }
     }
 } 
