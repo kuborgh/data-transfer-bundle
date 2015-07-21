@@ -59,6 +59,9 @@ class ExportCommand extends ContainerAwareCommand
         $parameters[] = sprintf('--password=%s', escapeshellarg($dbParams['dbPass']));
         $parameters[] = sprintf('--host=%s', escapeshellarg($dbParams['dbHost']));
 
+        if ($dbParams['databaseExportArguments'] !== '') {
+            $parameters[] = implode(' ', array_map('escapeshellarg', explode(' ', $dbParams['databaseExportArguments'])));
+        }
 
         // Write to file instead of stdout
         $toFile = $input->getOption(self::OPT_FILE);

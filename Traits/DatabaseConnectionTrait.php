@@ -29,10 +29,19 @@ trait DatabaseConnectionTrait
     protected function getDatabaseParameter()
     {
         if($this->getContainer()->getParameter('data_transfer_bundle.siteaccess')) {
-            return $this->getEzPublishDatabase();
+            $parameters = $this->getEzPublishDatabase();
         } else {
-            return $this->getSymfonyDatabase();
+            $parameters = $this->getSymfonyDatabase();
         }
+
+        if ($this->getContainer()->hasParameter('data_transfer_bundle.database.import_arguments')) {
+            $parameters['databaseImportArguments'] = $this->getContainer()->getParameter('data_transfer_bundle.database.import_arguments');
+        }
+        if ($this->getContainer()->hasParameter('data_transfer_bundle.database.export_arguments')) {
+            $parameters['databaseExportArguments'] = $this->getContainer()->getParameter('data_transfer_bundle.database.export_arguments');
+        }
+
+        return $parameters;
     }
 
     /**

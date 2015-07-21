@@ -216,12 +216,17 @@ class FetchCommand extends AbstractCommand
         $dbParams = $this->getDatabaseParameter();
 
         // Import Dump
+        $databaseImportArguments = $dbParams['databaseImportArguments'];
+        if ($databaseImportArguments !== '') {
+            $databaseImportArguments = implode(' ', array_map('escapeshellarg', explode(' ', $databaseImportArguments)));
+        }
         $importCmd = sprintf(
-            'mysql %s --user=%s --password=%s --host=%s < %s 2>&1',
+            'mysql %s --user=%s --password=%s --host=%s %s < %s 2>&1',
             escapeshellarg($dbParams['dbName']),
             escapeshellarg($dbParams['dbUser']),
             escapeshellarg($dbParams['dbPass']),
             escapeshellarg($dbParams['dbHost']),
+            $databaseImportArguments,
             escapeshellarg($tmpFile)
         );
         $this->progress();
