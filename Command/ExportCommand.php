@@ -59,7 +59,7 @@ class ExportCommand extends ContainerAwareCommand
         $parameters[] = sprintf('--password=%s', escapeshellarg($dbParams['dbPass']));
         $parameters[] = sprintf('--host=%s', escapeshellarg($dbParams['dbHost']));
 
-        if ($dbParams['databaseExportArguments'] !== '') {
+        if (!empty($dbParams['databaseExportArguments'])) {
             $parameters[] = implode(' ', array_map('escapeshellarg', explode(' ', $dbParams['databaseExportArguments'])));
         }
 
