@@ -43,16 +43,10 @@ class FetchCommand extends AbstractCommand
      */
     protected function configure()
     {
-        $this
-            ->setName('data-transfer:fetch')
-            ->setDescription('Fetch remote database and files from configured system.')
-            ->addOption('db-only', 'db-only', InputOption::VALUE_NONE, 'Only transfer the database, not the files.')
-            ->addOption(
-                'files-only',
-                'files-only',
-                InputOption::VALUE_NONE,
-                'Only transfer the files, not the database.'
-            );
+        $this->setName('data-transfer:fetch');
+        $this->setDescription('Fetch remote database and files from configured system.');
+        $this->addOption('db-only', 'db-only', InputOption::VALUE_NONE, 'Only transfer the database, not the files.');
+        $this->addOption('files-only', 'files-only', InputOption::VALUE_NONE, 'Only transfer the files, not the database.');
     }
 
     /**
@@ -86,7 +80,6 @@ class FetchCommand extends AbstractCommand
             }
             $this->progressDone();
         }
-
     }
 
     /**
@@ -111,23 +104,14 @@ class FetchCommand extends AbstractCommand
             $options[] = $sshProxyString;
         }
 
-        $exportCmd = sprintf(
-            'ssh %s %s@%s "cd %s ; %s %s data-transfer:export %s 2>&1"',
-            implode(' ', $options),
-            $remoteUser,
-            $remoteHost,
-            $remoteDir,
-            $consoleCmd,
-            $remoteEnv ? '--env=' . $remoteEnv : '',
-            $useFile ? '--file' : ''
-        );
+        $exportCmd = sprintf('ssh %s %s@%s "cd %s ; %s %s data-transfer:export %s 2>&1"', implode(' ', $options), $remoteUser, $remoteHost, $remoteDir, $consoleCmd, $remoteEnv ? '--env='.$remoteEnv : '', $useFile ? '--file' : '');
         $this->progress();
 
         $cacheFolder = $this->getContainer()->getParameter('kernel.cache_dir');
 
         // Create file handle to save the stream to
         if (!$useFile) {
-            $tmpFile = $cacheFolder . '/data-transfer.sql';
+            $tmpFile = $cacheFolder.'/data-transfer.sql';
             $tmpFileHandle = fopen($tmpFile, 'w');
 
             // Execute command
@@ -135,31 +119,24 @@ class FetchCommand extends AbstractCommand
             $process->setTimeout(null);
             $bytes = 0;
             // Update status for each megabyte
-            $process->run(
-                function ($type, $buffer) use (&$bytes, $tmpFileHandle, $process) {
-                    if ($type == Process::OUT) {
-                        // Update progress
-                        $bytes += strlen($buffer);
-                        if ($bytes / 1024 / 1024 >= 1) {
-                            $this->progress();
-                            $bytes = 0;
-                        }
-                        $process->getOutput();
+                        $process->run(function ($type, $buffer) use (&$bytes, $tmpFileHandle, $process) {
+                            if ($type == Process::OUT) {
+                                // Update progress
+                                $bytes += strlen($buffer);
+                                if ($bytes / 1024 / 1024 >= 1) {
+                                    $this->progress();
+                                    $bytes = 0;
+                                }
+                                $process->getOutput();
 
-                        // write to file
-                        fwrite($tmpFileHandle, $buffer);
-                    }
-                }
-            );
-
+                                // write to file
+                                fwrite($tmpFileHandle, $buffer);
+                            }
+                        });
 
             // Check for error
             if (!$process->isSuccessful()) {
-                throw new \Exception(sprintf(
-                    'Cannot connect to remote host: %s %s',
-                    $process->getOutput(),
-                    $process->getErrorOutput()
-                ));
+                throw new \Exception(sprintf('Cannot connect to remote host: %s %s', $process->getOutput(), $process->getErrorOutput()));
             }
             $this->progressOk();
 
@@ -185,11 +162,7 @@ class FetchCommand extends AbstractCommand
 
             // Check for error
             if (!$process->isSuccessful()) {
-                throw new \Exception(sprintf(
-                    'Cannot connect to remote host: %s %s',
-                    $process->getOutput(),
-                    $process->getErrorOutput()
-                ));
+                throw new \Exception(sprintf('Cannot connect to remote host: %s %s', $process->getOutput(), $process->getErrorOutput()));
             }
             $this->progressOk();
 
@@ -198,7 +171,7 @@ class FetchCommand extends AbstractCommand
             $data = json_decode($json, true);
 
             // Fetch file via rsync
-            $tmpFile = $cacheFolder . '/' . $data['basename'];
+            $tmpFile = $cacheFolder.'/'.$data['basename'];
             $this->rSync($data['filename'], $tmpFile);
             $this->progressOk();
 
@@ -215,15 +188,22 @@ class FetchCommand extends AbstractCommand
         // Fetch db connection data
         $dbParams = $this->getDatabaseParameter();
 
+        // Prepare command line parameters
+        $parameters = array();
+        $parameters[] = escapeshellarg($dbParams['dbName']);
+        $parameters[] = sprintf('--user=%s', escapeshellarg($dbParams['dbUser']));
+        $parameters[] = sprintf('--password=%s', escapeshellarg($dbParams['dbPass']));
+        $parameters[] = sprintf('--host=%s', escapeshellarg($dbParams['dbHost']));
+
+        // Add additional arguments
+        if (isset($dbParams['databaseImportArguments'])) {
+            foreach ($dbParams['databaseImportArguments'] as $argument) {
+                $parameters[] = $argument;
+            }
+        }
+
         // Import Dump
-        $importCmd = sprintf(
-            'mysql %s --user=%s --password=%s --host=%s < %s 2>&1',
-            escapeshellarg($dbParams['dbName']),
-            escapeshellarg($dbParams['dbUser']),
-            escapeshellarg($dbParams['dbPass']),
-            escapeshellarg($dbParams['dbHost']),
-            escapeshellarg($tmpFile)
-        );
+        $importCmd = sprintf('mysql %s < %s 2>&1', implode(' ', $parameters), escapeshellarg($tmpFile));
         $this->progress();
 
         $process = new Process($importCmd);
@@ -233,11 +213,7 @@ class FetchCommand extends AbstractCommand
         $this->progress();
 
         if (!$process->isSuccessful()) {
-            throw new \Exception(sprintf(
-                'Error importing database: %s %s',
-                $process->getOutput(),
-                $process->getErrorOutput()
-            ));
+            throw new \Exception(sprintf('Error importing database: %s %s', $process->getOutput(), $process->getErrorOutput()));
         }
         $this->progressOk();
 
@@ -279,16 +255,7 @@ class FetchCommand extends AbstractCommand
             }
 
             // Prepare command
-            $cmd = sprintf(
-                'rsync -P %s -e \'ssh %s\' %s@%s:%s/%s %s/ 2>&1',
-                implode(' ', $rsyncOptions),
-                implode(' ', $sshOptions),
-                $remoteUser,
-                $remoteHost,
-                $remoteDir,
-                $src,
-                $dst
-            );
+            $cmd = sprintf('rsync -P %s -e \'ssh %s\' %s@%s:%s/%s %s/ 2>&1', implode(' ', $rsyncOptions), implode(' ', $sshOptions), $remoteUser, $remoteHost, $remoteDir, $src, $dst);
 
             // Run (with callback to update those fancy dots
             $process = new Process($cmd);
@@ -297,49 +264,42 @@ class FetchCommand extends AbstractCommand
             $lastCnt = 0;
             $counting = true;
             $this->output->writeln('Counting files');
-            $process->run(
-                function ($type, $buffer) use (&$lastCnt, &$counting) {
-                    if ($type == Process::OUT) {
-                        if (preg_match('/(\d+)\sfiles.../', $buffer, $matches)) {
-                            // Still counting
-                            $diff = ($matches[1] - $lastCnt) / 100;
-                            for ($i = 0; $i < $diff; $i++) {
-                                $this->progress();
-                            }
-                            $lastCnt = $matches[1];
+            $process->run(function ($type, $buffer) use (&$lastCnt, &$counting) {
+                if ($type == Process::OUT) {
+                    if (preg_match('/(\d+)\sfiles.../', $buffer, $matches)) {
+                        // Still counting
+                        $diff = ($matches[1] - $lastCnt) / 100;
+                        for ($i = 0; $i < $diff; $i++) {
+                            $this->progress();
+                        }
+                        $lastCnt = $matches[1];
+                    } elseif (preg_match('/xfer#(\d+), to\-check=(\d+)\/(\d+)/', $buffer, $matches)) {
+                        // Finished counting, now downloading
+                        if ($counting) {
+                            $counting = false;
+                            $this->progressDone();
+                            $this->output->writeln(sprintf('Found %d files/folders', $lastCnt));
+                            $this->output->writeln('');
+                            $this->output->writeln('Syncing files');
+                            $lastCnt = 0;
+                        }
 
-                        } elseif (preg_match('/xfer#(\d+), to\-check=(\d+)\/(\d+)/', $buffer, $matches)) {
-                            // Finished counting, now downloading
-                            if ($counting) {
-                                $counting = false;
-                                $this->progressDone();
-                                $this->output->writeln(sprintf('Found %d files/folders', $lastCnt));
-                                $this->output->writeln('');
-                                $this->output->writeln('Syncing files');
-                                $lastCnt = 0;
-                            }
-
-                            $diff = floor(($matches[1] - $lastCnt) / 100);
-                            for ($i = 0; $i < $diff; $i++) {
-                                $this->progress();
-                            }
-                            if ($diff) {
-                                $lastCnt += $diff * 100;
-                            }
+                        $diff = floor(($matches[1] - $lastCnt) / 100);
+                        for ($i = 0; $i < $diff; $i++) {
+                            $this->progress();
+                        }
+                        if ($diff) {
+                            $lastCnt += $diff * 100;
                         }
                     }
                 }
-            );
+            });
             if ($counting) {
                 $this->output->writeln('Files already up-to-date');
             }
 
             if (!$process->isSuccessful()) {
-                throw new \Exception(sprintf(
-                    'Error fetching files: %s %s',
-                    $process->getOutput(),
-                    $process->getErrorOutput()
-                ));
+                throw new \Exception(sprintf('Error fetching files: %s %s', $process->getOutput(), $process->getErrorOutput()));
             }
 
             $this->progressOk();
@@ -355,7 +315,7 @@ class FetchCommand extends AbstractCommand
      */
     protected function getParam($param)
     {
-        return $this->getContainer()->getParameter('data_transfer_bundle.' . $param);
+        return $this->getContainer()->getParameter('data_transfer_bundle.'.$param);
     }
 
     /**
@@ -376,12 +336,7 @@ class FetchCommand extends AbstractCommand
         }
 
         // Build option string
-        $opt = sprintf(
-            '-o ProxyCommand="ssh -W %%h:%%p %s %s@%s"',
-            implode(' ', $sshProxyOptions),
-            $sshProxyUser,
-            $sshProxyHost
-        );
+        $opt = sprintf('-o ProxyCommand="ssh -W %%h:%%p %s %s@%s"', implode(' ', $sshProxyOptions), $sshProxyUser, $sshProxyHost);
 
         return $opt;
     }
@@ -406,15 +361,7 @@ class FetchCommand extends AbstractCommand
             $sshOptions[] = $sshProxyString;
         }
 
-        $cmd = sprintf(
-            'rsync -P %s -e \'ssh %s\' %s@%s:%s %s 2>&1',
-            implode(' ', $rsyncOptions),
-            implode(' ', $sshOptions),
-            $remoteUser,
-            $remoteHost,
-            $src,
-            $dst
-        );
+        $cmd = sprintf('rsync -P %s -e \'ssh %s\' %s@%s:%s %s 2>&1', implode(' ', $rsyncOptions), implode(' ', $sshOptions), $remoteUser, $remoteHost, $src, $dst);
         $process = new Process($cmd);
         $process->setTimeout(null);
         $process->run($callback);
@@ -422,6 +369,7 @@ class FetchCommand extends AbstractCommand
 
     /**
      * Exec command on remote side via ssh
+     *
      * @param String $cmd Command
      */
     protected function execRemoteCommand($cmd)
@@ -438,14 +386,7 @@ class FetchCommand extends AbstractCommand
             $options[] = $sshProxyString;
         }
 
-        $remoteCmd = sprintf(
-            'ssh %s %s@%s "cd %s ; %s 2>&1"',
-            implode(' ', $options),
-            $remoteUser,
-            $remoteHost,
-            $remoteDir,
-            $cmd
-        );
+        $remoteCmd = sprintf('ssh %s %s@%s "cd %s ; %s 2>&1"', implode(' ', $options), $remoteUser, $remoteHost, $remoteDir, $cmd);
         $process = new Process($remoteCmd);
         $process->setTimeout(null);
         $process->run();

@@ -61,3 +61,11 @@ parameters:
 
     # Fetch Database via sql file, not via stdout. This scales better for large databases
     data_transfer_bundle.db_via_file: true
+
+    # Additional mysql arguments for DB import, e.g. '--compress'
+    # Can be a single string or an array of argument
+    data_transfer_bundle.database.import_arguments: ~
+
+    # Additional mysqldump arguments for DB export, e.g. '--disable-keys'
+    # Can be a single string or an array of argument
+    data_transfer_bundle.database.export_arguments: ~

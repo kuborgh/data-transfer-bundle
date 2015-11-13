@@ -28,11 +28,29 @@ trait DatabaseConnectionTrait
      */
     protected function getDatabaseParameter()
     {
-        if($this->getContainer()->getParameter('data_transfer_bundle.siteaccess')) {
-            return $this->getEzPublishDatabase();
+        if ($this->getContainer()->getParameter('data_transfer_bundle.siteaccess')) {
+            $parameters = $this->getEzPublishDatabase();
         } else {
-            return $this->getSymfonyDatabase();
+            $parameters = $this->getSymfonyDatabase();
         }
+
+        # Additional database import arguments
+        $importArgs = $this->getContainer()->getParameter('data_transfer_bundle.database.import_arguments');
+        if (is_array($importArgs)) {
+            $parameters['databaseImportArguments'] = $importArgs;
+        } elseif (is_string($importArgs)) {
+            $parameters['databaseImportArguments'] = array($importArgs);
+        }
+
+        # Additional database export arguments
+        $exportArgs = $this->getContainer()->getParameter('data_transfer_bundle.database.export_arguments');
+        if (is_array($exportArgs)) {
+            $parameters['databaseExportArguments'] = $exportArgs;
+        } elseif (is_string($exportArgs)) {
+            $parameters['databaseExportArguments'] = array($exportArgs);
+        }
+
+        return $parameters;
     }
 
     /**
@@ -46,7 +64,7 @@ trait DatabaseConnectionTrait
             'dbName' => $this->getContainer()->getParameter('database_name'),
             'dbUser' => $this->getContainer()->getParameter('database_user'),
             'dbPass' => $this->getContainer()->getParameter('database_password'),
-            'dbHost' => $this->getContainer()->getParameter('database_host')
+            'dbHost' => $this->getContainer()->getParameter('database_host'),
         );
     }
 
@@ -65,7 +83,7 @@ trait DatabaseConnectionTrait
 
         $legacyParameter = sprintf('ezsettings.%s.database.params', $siteaccess);
         $repositoryParameter = sprintf('ezsettings.%s.repository', $siteaccess);
-        if($this->getContainer()->hasParameter($legacyParameter)) {
+        if ($this->getContainer()->hasParameter($legacyParameter)) {
             $dbParams = $this->getContainer()->getParameter($legacyParameter);
 
             return array(
