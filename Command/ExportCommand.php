@@ -24,7 +24,6 @@ use Symfony\Component\Process\Process;
 class ExportCommand extends ContainerAwareCommand
 {
     use DatabaseConnectionTrait;
-
     const OPT_FILE = 'file';
 
     /**
@@ -32,9 +31,8 @@ class ExportCommand extends ContainerAwareCommand
      */
     protected function configure()
     {
-        $this
-            ->setName('data-transfer:export')
-            ->setDescription('Dump SQL database to stdout');
+        $this->setName('data-transfer:export');
+        $this->setDescription('Dump SQL database to stdout');
         $this->addOption(self::OPT_FILE, null, InputOption::VALUE_NONE, 'Dump database to file, not to stdout');
     }
 
@@ -59,8 +57,11 @@ class ExportCommand extends ContainerAwareCommand
         $parameters[] = sprintf('--password=%s', escapeshellarg($dbParams['dbPass']));
         $parameters[] = sprintf('--host=%s', escapeshellarg($dbParams['dbHost']));
 
-        if (!empty($dbParams['databaseExportArguments'])) {
-            $parameters[] = implode(' ', array_map('escapeshellarg', explode(' ', $dbParams['databaseExportArguments'])));
+        // Add additional arguments
+        if (isset($dbParams['databaseExportArguments'])) {
+            foreach ($dbParams['databaseExportArguments'] as $argument) {
+                $parameters[] = $argument;
+            }
         }
 
         // Write to file instead of stdout
@@ -84,14 +85,12 @@ class ExportCommand extends ContainerAwareCommand
         $process->setTimeout(null);
 
         // Output data directly to not get a timeout
-        $process->run(
-            function ($type, $buffer) use ($output, $toFile) {
-                // Output directly to console
-                if (!$toFile && $type == Process::OUT) {
-                    $output->write($buffer, false, Output::OUTPUT_RAW);
-                }
+        $process->run(function ($type, $buffer) use ($output, $toFile) {
+            // Output directly to console
+            if (!$toFile && $type == Process::OUT) {
+                $output->write($buffer, false, Output::OUTPUT_RAW);
             }
-        );
+        });
 
         if (!$process->isSuccessful()) {
             throw new \Exception(sprintf("Error dumping database:\n%s", $process->getOutput()));
@@ -116,7 +115,7 @@ class ExportCommand extends ContainerAwareCommand
         $old = time() - 24 * 60 * 60;
 
         $folder = $this->getContainer()->getParameter('kernel.cache_dir');
-        foreach (glob($folder . '/db-dump-*.sql') as $dump) {
+        foreach (glob($folder.'/db-dump-*.sql') as $dump) {
             if (!preg_match('/db\-dump\-(\d*)\.sql$/', $dump, $matches)) {
                 continue;
             }
