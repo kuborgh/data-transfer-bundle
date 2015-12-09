@@ -12,17 +12,17 @@ composer require kuborgh/data-transfer-bundle
 ```
 
 ### 2. Configuration
-Import configuration into main config. Add
+Import configuration into main config (app/config/config.yml). Add the following line
 ```
 imports:
-    - {resource: "@DataTransferBundle/Resources/config/parameters.yml"}
+    - {resource: @DataTransferBundle/Resources/config/parameters.yml}
 ```
 into your config.yml
 
 ### 3. Register Bundle
-Add the bundle to your AppKernel.php
+Add the bundle in app/AppKernel.php
 ```
-$bundles[] = new DataTransferBundle();
+$bundles[] = new Kuborgh\DataTransferBundle\DataTransferBundle();
 ```
 
 ### 4. Configuration
@@ -34,17 +34,18 @@ See Resources/config/parameters.yml for details
 
 ## Usage ##
 
-To transfer database+files from the remote server to your develop environment simply call
+To transfer database+files from the remote server to your develop environment simply call.
 ```
 php app/console data-transfer:fetch
 ```
 
-To only transfer the database, use
+NOTE: The bundle must be already deployed on the remote side in order to work.
+
+To limit the transfer to database or files only, use
 ```
 php app/console data-transfer:fetch --db-only
 ```
-
-To only transfer files, use
+or 
 ```
 php app/console data-transfer:fetch --files-only
 ```
