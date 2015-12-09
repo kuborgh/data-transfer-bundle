@@ -67,6 +67,9 @@ class FetchCommand extends AbstractCommand
                 $this->fetchDatabase();
             } catch (\Exception $exc) {
                 $this->progressErr($exc->getMessage());
+                $this->progressDone();
+
+                return 1;
             }
             $this->progressDone();
         }
@@ -77,6 +80,9 @@ class FetchCommand extends AbstractCommand
                 $this->fetchFiles();
             } catch (\Exception $exc) {
                 $this->progressErr($exc->getMessage());
+                $this->progressDone();
+
+                return 1;
             }
             $this->progressDone();
         }
