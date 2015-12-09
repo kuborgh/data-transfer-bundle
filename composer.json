@@ -1,8 +1,8 @@
 {
     "name": "kuborgh/data-transfer-bundle",
     "type": "library",
-    "description": "Vendor Library to easily transfer live data to a developer environment",
-    "keywords": ["library"],
+    "description": "Console Commands to easily transfer live data (database + files) to another environment",
+    "keywords": ["library","command","database","transfer","files"],
     "homepage": "https://github.com/kuborgh/data-transfer-bundle",
     "license": "MIT",
     "authors": [
