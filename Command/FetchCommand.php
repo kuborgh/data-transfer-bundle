@@ -118,7 +118,7 @@ class FetchCommand extends AbstractCommand
         // Create file handle to save the stream to
         if (!$useFile) {
             $tmpFile = $cacheFolder.'/data-transfer.sql';
-            $tmpFileHandle = fopen($tmpFile, 'w');
+            $tmpFileHandle = fopen($tmpFile, 'w+');
 
             // Execute command
             $process = new Process($exportCmd);
@@ -149,11 +149,16 @@ class FetchCommand extends AbstractCommand
             // Check if we have a valid dump in our output
             // first line must start with '-- MySQL dump' and end with '-- Dump completed'
             rewind($tmpFileHandle);
-            $start = fgets($tmpFileHandle, 4096);
-            fseek($tmpFileHandle, 4096, SEEK_END);
-            $end = fgets($tmpFileHandle, 4096);
-            if (!preg_match(self::VALID_DUMP_REGEX_1, $start) || !preg_match(self::VALID_DUMP_REGEX_2, $end)) {
-                throw new \Exception(sprintf('Error on remote host: %s', $process->getOutput()));
+            $start = fread($tmpFileHandle, 1024);
+            if (!preg_match(self::VALID_DUMP_REGEX_1, $start)) {
+                $excMsg = sprintf('Error on remote host. Start regex not found: "%s"', $start);
+                throw new \Exception($excMsg);
+            }
+            fseek($tmpFileHandle, -1024, SEEK_END);
+            $end = fread($tmpFileHandle, 1024);
+            if (!preg_match(self::VALID_DUMP_REGEX_2, $end)) {
+                $excMsg = sprintf('Error on remote host. End regex not found: "%s"', $end);
+                throw new \Exception($excMsg);
             }
             $this->progressOk();
 
