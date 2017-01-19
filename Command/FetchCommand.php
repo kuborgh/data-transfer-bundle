@@ -284,7 +284,7 @@ class FetchCommand extends AbstractCommand
                             $this->progress();
                         }
                         $lastCnt = $matches[1];
-                    } elseif (preg_match('/xfer#(\d+), to\-check=(\d+)\/(\d+)/', $buffer, $matches)) {
+                    } elseif (preg_match('/xfe?r#(\d+), to\-che?c?k=(\d+)\/(\d+)/', $buffer, $matches)) {
                         // Finished counting, now downloading
                         if ($counting) {
                             $counting = false;
